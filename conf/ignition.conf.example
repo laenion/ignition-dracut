@@ -15,3 +15,12 @@
 ## Default:     no
 
 #REQUIRE_USER_CONFIG_DEVICE=no
+
+## Path to store the ignition.firstboot flag file in.
+## If this path is not on the boot volume a snippet to search for the
+## corresponding device by UUID will be added to the GRUB configuration.
+## When changing this value the GRUB configuration has to be refreshed.
+## Type:        string
+## Default:     /boot/grub2
+
+#FIRSTBOOT_FLAG_DIR=/var

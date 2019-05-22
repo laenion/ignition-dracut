@@ -1,14 +1,47 @@
 #!/bin/sh
-exec tail -n +3 $0
-# We store the file on the /boot/ partition so find the
-# boot partition. On UEFI this may different than the grub
-# $root so we search for it here.
-# https://github.com/coreos/ignition-dracut/issues/51
-search --set=bootpart --label boot
+set -e
+
+# Read command to set the path of Ignitions' firstboot flag file
+# from configuration if available
+IGNITION_CONF="/etc/ignition.conf"
+if [ -e "${IGNITION_CONF}" ]; then
+    source "${IGNITION_CONF}"
+fi
+
+if [ -n "${FIRSTBOOT_FLAG_DIR}" ]; then
+    . "$pkgdatadir/grub-mkconfig_lib"
+
+    GRUB_VAR_DEVICE="`${grub_probe} --target=device ${FIRSTBOOT_FLAG_DIR}`"
+    GRUB_VAR_DEVICE_UUID="`${grub_probe} --device ${GRUB_VAR_DEVICE} --target=fs_uuid 2> /dev/null`" || true
+    echo "# This code was inserted if an Ignition flag file directory was"
+    echo "# configured; it will search for the corresponding device and/or"
+    echo "# btrfs subvolume and set it accordingly"
+    echo "search --set flagdir --fs-uuid ${GRUB_VAR_DEVICE_UUID}"
+    echo 'flagdir="(${flagdir})"'
+
+    # Check whether the mount point is referencing a btrfs subvolume
+    GRUB_VAR_SUBVOL="`findmnt -n -o SOURCE --target ${FIRSTBOOT_FLAG_DIR} | sed -n 's/.*\[\(.*\)\].*/\1/p'`"
+    if [ -n "${GRUB_VAR_SUBVOL}" ]; then
+        echo 'btrfs-mount-subvol "${flagdir}" "'${FIRSTBOOT_FLAG_DIR}'" "'${GRUB_VAR_SUBVOL}'"'
+        echo 'flagdir="'${FIRSTBOOT_FLAG_DIR}'"'
+    fi
+fi
+
+exec tail -n +$((LINENO+1)) $0
+
+# Default to /boot if flag file directory was not configured or found
+if [ -z "${flagdir}" ]; then
+    # We store the file on the /boot/ partition so find the
+    # boot partition. On UEFI this may different than the grub
+    # $root so we search for it here.
+    # https://github.com/coreos/ignition-dracut/issues/51
+    search --set=flagdir --label boot
+    flagdir="(${flagdir})"
+fi
 # Determine if this is a first boot and set the variable
 # to be used later on the kernel command line.
 set ignition_firstboot=""
-if [ -f "(${bootpart})/ignition.firstboot" ]; then
+if [ -f "${flagdir}/ignition.firstboot" ]; then
     # default to dhcp networking parameters to be used with ignition 
     set ignition_network_kcmdline='rd.neednet=1 ip=dhcp'
 
@@ -17,7 +50,7 @@ if [ -f "(${bootpart})/ignition.firstboot" ]; then
     # This override feature is primarily used by coreos-installer to
     # persist static networking config provided during install to the    
     # first boot of the machine.
-    source "(${bootpart})/ignition.firstboot"
+    source "${flagdir}/ignition.firstboot"
     
     # we support setting variables in the 
     set ignition_firstboot="ignition.firstboot $ignition_network_kcmdline"

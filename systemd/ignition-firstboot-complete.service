@@ -17,7 +17,9 @@ RemainAfterExit=yes
 # detected this file. Fail if we are unable to remove it, rather than risking
 # rerunning Ignition at next boot.
 MountFlags=slave
-ExecStart=/bin/sh -c 'if mountpoint -q /boot; then mount -o remount,rw /boot; fi && rm /boot/ignition.firstboot'
+EnvironmentFile=/etc/ignition.conf
+ExecStart=/bin/sh -c 'if mountpoint -q /boot; then mount -o remount,rw /boot; fi'
+ExecStart=/bin/sh -c 'rm /boot/ignition.firstboot || rm "${FIRSTBOOT_FLAG_DIR}/ignition.firstboot"'
 
 [Install]
 WantedBy=multi-user.target
