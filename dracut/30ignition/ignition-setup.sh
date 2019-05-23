@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
+USER_CONFIG_DEVICE=""
 IGNITION_CONF="/etc/ignition.conf"
 if [ -e "${IGNITION_CONF}" ]; then
     source "${IGNITION_CONF}"
