@@ -1,14 +1,18 @@
 #!/bin/sh
 exec tail -n +3 $0
-# We store the file on the /boot/ partition so find the
+# By default the flag file is stored in /boot, so try to find the
 # boot partition. On UEFI this may different than the grub
 # $root so we search for it here.
 # https://github.com/coreos/ignition-dracut/issues/51
-search --set=bootpart --label boot
+# The path may also be set by previous grub scripts.
+if [ -z "${ignition_flagdir}" ]; then
+    search --set=ignition_flagdir --label boot
+    set ignition_flagdir="(${ignition_flagdir})"
+fi
 # Determine if this is a first boot and set the variable
 # to be used later on the kernel command line.
 set ignition_firstboot=""
-if [ -f "(${bootpart})/ignition.firstboot" ]; then
+if [ -f "${ignition_flagdir}/ignition.firstboot" ]; then
     # default to dhcp networking parameters to be used with ignition 
     set ignition_network_kcmdline='rd.neednet=1 ip=dhcp'
 
@@ -17,7 +21,7 @@ if [ -f "(${bootpart})/ignition.firstboot" ]; then
     # This override feature is primarily used by coreos-installer to
     # persist static networking config provided during install to the    
     # first boot of the machine.
-    source "(${bootpart})/ignition.firstboot"
+    source "${ignition_flagdir}/ignition.firstboot"
     
     # we support setting variables in the 
     set ignition_firstboot="ignition.firstboot $ignition_network_kcmdline"
